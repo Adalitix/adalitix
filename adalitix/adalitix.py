@@ -36,6 +36,8 @@ class Project:
                               params={'name': name})
 
             self.id = r.json()["id"]
+        else:
+            self.id = id
 
 
 class Revision:
