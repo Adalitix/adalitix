@@ -1,0 +1,50 @@
+version: "3.4"
+services:
+    backend:
+        build:
+            dockerfile: Dockerfile
+            context: ./backend
+            args:
+                ENVIRONMENT: "dev"
+        image: adalitix/backend-dev
+        container_name: adalitix-backend-dev
+        command: python /home/devel/adalitix/backend/manage.py runserver 0.0.0.0:8000
+        entrypoint: /home/devel/adalitix/backend/entrypoint-dev.sh
+        # Overwrite the project directory with volume
+        volumes:
+            - ./backend:/home/devel/adalitix/backend/
+        environment:
+            - DJANGO_SETTINGS_MODULE=config.settings.dev
+
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile.dev
+        image: adalitix/frontend-dev
+        container_name: adalitix-frontend-dev
+        volumes:
+            - ./frontend/public:/usr/src/app/public
+            - ./frontend/src:/usr/src/app/src
+        environment:
+            - frontend/.env
+        ports:
+            - "23000:3000"
+        depends_on:
+            - backend
+
+    clipper:
+        image: adalitix/clipper-dev
+        container_name: adalitix-clipper-dev
+        entrypoint: /home/clipper/entrypoint-dev.sh
+
+    db:
+        volumes:
+            - pg_data:/var/lib/postgresql/data
+
+    geoserver:
+        volumes:
+            - ./geoserver-data:/opt/geoserver/data_dir
+
+volumes:
+    pg_data:
+        name: adalitix_pg_data_dev

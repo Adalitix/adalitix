@@ -1,0 +1,86 @@
+version: "3.4"
+services:
+    # The nginx image will compile all the frontend code by itself
+    # look at the Dockerfile-nginx for more information
+    nginx:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        image: adalitix/nginx
+        container_name: adalitix-nginx
+        ports:
+            - "23000:80"
+            - "8000:8000"
+        volumes:
+            - static-content:/static
+        depends_on:
+            - backend
+        networks:
+            - adalitix
+
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
+        image: adalitix/backend-prod
+        container_name: adalitix-backend-prod
+        command: gunicorn backend.wsgi -b 0.0.0.0:8000
+        entrypoint: /home/devel/adalitix/backend/entrypoint-prod.sh
+        volumes:
+            - static-content:/home/devel/adalitix/backend/backend/static
+        expose:
+            - "8000"
+        ports:
+            - "28000:8000"
+        environment:
+            - DJANGO_SETTINGS_MODULE=config.settings.prod
+        networks:
+            - adalitix
+        depends_on:
+            - db
+            - geoserver
+            - clipper
+
+    clipper:
+        build:
+            context: ./clipper
+            dockerfile: Dockerfile
+        image: adalitix/clipper-prod
+        container_name: adalitix-clipper-prod
+        expose:
+            - "1337"
+            - "1338"
+        privileged: true
+        networks:
+            - adalitix
+
+    db:
+        image: mdillon/postgis:9.6-alpine
+        container_name: adalitix-postgis
+        ports:
+            - "25432:5432"
+        environment:
+            - POSTGRES_USER=adalitix
+            - POSTGRES_PASSWORD=adalitix
+            - POSTGRES_DB=adalitix
+        networks:
+            - adalitix
+
+    geoserver:
+        image: kartoza/geoserver:2.13.0
+        container_name: adalitix-geoserver
+        environment:
+            - GEOSERVER_DATA_DIR=/opt/geoserver/data_dir
+        volumes:
+            - geoserver-data-dir:/opt/geoserver/data_dir
+        ports:
+            - "28080:8080"
+        networks:
+            - adalitix
+
+volumes:
+    static-content:
+    geoserver-data-dir:
+
+networks:
+    adalitix:
