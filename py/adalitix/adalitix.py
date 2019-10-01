@@ -7,9 +7,9 @@ from os import remove
 BASE_URL = "http://localhost:28000"
 
 
-def uploadShapefile(zipPath, name, revision):
+def uploadShapefile(zipPath, name, folder):
     files = {'data': open(zipPath, 'rb')}
-    values = {'name': name, 'type': "shp", 'revision': revision}
+    values = {'name': name, 'type': "shp", 'folder': folder}
 
     r = requests.post(BASE_URL+"/apis/files",
                       files=files, params=values)
@@ -40,8 +40,8 @@ class Project:
             self.id = id
 
 
-class Revision:
-    def __init__(self, name=None, project=None, tags=None, id=None):
+class Folder:
+    def __init__(self, name=None, project=None, parent=None, id=None):
         if id is None:
             if name is None or project is None:
                 raise Exception(
@@ -51,26 +51,27 @@ class Revision:
                 project, Project) else project
             values = {'name': name, 'project': project_id}
 
-            if tags is not None:
-                values["tags"] = tags
+            if parent is not None:
+                values["parent"] = parent.id if isinstance(
+                    parent, Folder) else parent
 
-            r = requests.post(BASE_URL + "/apis/revisions",
+            r = requests.post(BASE_URL + "/apis/folders",
                               params=values)
 
             self.id = r.json()["id"]
 
 
 class Tiff:
-    def __init__(self, id=None, name=None, revision=None):
-        if id is None and (name is None or revision is None):
+    def __init__(self, id=None, name=None, folder=None):
+        if id is None and (name is None or folder is None):
             raise Exception(
-                "Name and revision are required if no id is passed")
+                "Name and folder are required if no id is passed")
 
         self.id = id
         self.cached_content = None
         self.name = name
-        self.revision_id = revision.id if isinstance(
-            revision, Revision) else revision
+        self.folder_id = folder.id if isinstance(
+            folder, Folder) else folder
 
     def content(self):
         if self.cached_content is None:
@@ -96,7 +97,7 @@ class Tiff:
 
         return arr
 
-    def saveToFile(self, path):
+    def save_to_file(self, path):
         with open(path, "wb") as f:
             f.write(self.content())
 
@@ -104,7 +105,7 @@ class Tiff:
         if self.id is None:
             files = {'data': open(tiffPath, 'rb')}
             values = {'name': self.name, 'type': "tiff",
-                      'revision': self.revision_id}
+                      'folder': self.folder_id}
 
             # TODO: check that response is successful
             r = requests.post(BASE_URL+"/apis/files",
@@ -112,6 +113,53 @@ class Tiff:
             self.id = r.json()["id"]
         else:
             files = {'data': open(tiffPath, 'rb')}
+
+            # TODO: check that response is successful
+            r = requests.post(BASE_URL + "/apis/files/" + self.id, files=files)
+
+        return self
+
+
+class File:
+    def __init__(self, id=None, name=None, folder=None):
+        if id is None and (name is None or folder is None):
+            raise Exception(
+                "Name and folder are required if no id is passed")
+
+        self.id = id
+        self.cached_content = None
+        self.name = name
+        self.folder_id = folder.id if isinstance(
+            folder, Folder) else folder
+
+    def content(self):
+        if self.cached_content is None:
+            if self.id is None:
+                raise Exception(
+                    "Cannot read from a file that has not been created yet")
+
+            r = requests.get(BASE_URL + "/apis/files/" + self.id)
+
+            self.cached_content = r.content
+
+        return self.cached_content
+
+    def save_to_file(self, path):
+        with open(path, "wb") as f:
+            f.write(self.content())
+
+    def upload(self, filePath):
+        if self.id is None:
+            files = {'data': open(filePath, 'rb')}
+            values = {'name': self.name, 'type': "other",
+                      'folder': self.folder_id}
+
+            # TODO: check that response is successful
+            r = requests.post(BASE_URL+"/apis/files",
+                              files=files, params=values)
+            self.id = r.json()["id"]
+        else:
+            files = {'data': open(filePath, 'rb')}
 
             # TODO: check that response is successful
             r = requests.post(BASE_URL + "/apis/files/" + self.id, files=files)
