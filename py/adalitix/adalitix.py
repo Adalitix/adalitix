@@ -79,8 +79,7 @@ class Tiff:
                 raise Exception(
                     "Cannot read from a file that has not been created yet")
 
-            url = BASE_URL + "/geoserver/adalitix/ows?service=WCS&version=2.0.0&request=GetCoverage&coverageId=adalitix:" + id
-            r = requests.get(url)
+            r = requests.get(BASE_URL + "/apis/files/" + self.id)
 
             self.cached_content = r.content
 
